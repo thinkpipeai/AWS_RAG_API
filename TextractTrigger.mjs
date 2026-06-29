@@ -1,4 +1,4 @@
-import { S3Client } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { TextractClient, StartDocumentTextDetectionCommand, GetDocumentTextDetectionCommand } from '@aws-sdk/client-textract';
 
 const s3 = new S3Client({ region: 'us-east-2' });
@@ -17,21 +17,24 @@ export const handler = async (event) => {
       })
     );
     const jobId = startResponse.JobId;
+    console.log(`Started Textract job with ID: ${jobId}`);
 
     let jobStatus = 'IN_PROGRESS';
     let pages = [];
 
     while (jobStatus === 'IN_PROGRESS') {
+      console.log('Waiting for Textract job to complete...');
       await sleep(5000); 
+
       const getResponse = await textract.send(
         new GetDocumentTextDetectionCommand({ JobId: jobId })
       );
       jobStatus = getResponse.JobStatus;
+      console.log(`Current Textract Job Status: ${jobStatus}`);
 
       if (jobStatus === 'SUCCEEDED') {
         pages.push(...getResponse.Blocks);
 
-        // Fetch remaining pages via NextToken
         let nextToken = getResponse.NextToken;
         while (nextToken) {
           const nextPage = await textract.send(
@@ -45,14 +48,23 @@ export const handler = async (event) => {
       }
     }
 
-    // 3. Extract all lines of text
     const text = pages
       .filter(block => block.BlockType === 'LINE')
       .map(line => line.Text)
       .join('\n');
-    console.log('Extracted text preview:', text.substring(0, 100));
+    console.log('Extracted text:', text);
 
-    // Next Step: Save output to S3
+    // 4. Save the result to extracted-text/
+    const outputKey = key.replace('raw-docs/', 'extracted-text/').replace(/\.[^/.]+$/, '.txt');
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: outputKey,
+        Body: text,
+      })
+    );
+
+    console.log('OCR Done, results have been saved to.', outputKey);
   } catch (err) {
     console.error('Processing failures:', err);
     throw err;
