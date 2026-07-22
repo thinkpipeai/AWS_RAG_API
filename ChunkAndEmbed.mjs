@@ -98,7 +98,31 @@ async function legalDocumentSplitting(text) {
     }
     if (currentChunk.length > 0) chunks.push(currentChunk);
   } else {
-     // TODO: Implement chapter-based chunking
+     // Chunking using the recognized chapter structure
+    for (let i = 0; i < sections.length; i++) {
+      const currentSection = sections[i];
+      const nextSection = i < sections.length - 1 ? sections[i + 1] : null;
+
+      // Calculate the starting and ending positions of chapter content
+      const contentStart = currentSection.position + currentSection.type.length +
+        currentSection.number.length + currentSection.title.length + 3; // +3 for spaces
+      const contentEnd = nextSection ? nextSection.position : cleanedText.length;
+
+      // Extract chapter titles and content
+      const sectionHeader = cleanedText.substring(currentSection.position, contentStart);
+      let sectionContent = cleanedText.substring(contentStart, contentEnd).trim();
+
+      // Construct full chapter text
+      const fullSectionText = `${sectionHeader}\n${sectionContent}`;
+
+      // Check chapter size
+      if (fullSectionText.length <= 1000) {
+        // Smaller chapters as separate blocks
+        chunks.push(fullSectionText);
+      } else {
+        // TODO: Handle splitting of large chapters with contextual headers
+      }
+    }
   }
 
   return chunks;
