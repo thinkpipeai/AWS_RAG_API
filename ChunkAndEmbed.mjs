@@ -120,7 +120,53 @@ async function legalDocumentSplitting(text) {
         // Smaller chapters as separate blocks
         chunks.push(fullSectionText);
       } else {
-        // TODO: Handle splitting of large chapters with contextual headers
+        // Chapters are large and need to be split further, but keep the chapter titles 
+        const introSize = Math.min(300, sectionContent.length);
+        const introText = sectionContent.substring(0, introSize);
+        chunks.push(`${sectionHeader}\n${introText}...`);
+
+        const remainingContent = sectionContent.substring(introSize);
+        const contextHeader = `${currentSection.type} ${currentSection.number} - ${currentSection.title} (continued)`;
+
+        const contentParagraphs = remainingContent.split(/\n\n+/);
+        let currentChunk = "";
+
+        for (const para of contentParagraphs) {
+          if (currentChunk.length + para.length > 700) {
+            if (currentChunk.length > 0) {
+              chunks.push(`${contextHeader}\n${currentChunk}`);
+              currentChunk = "";
+            }
+
+            if (para.length > 800) {
+              const sentences = para.match(/[^.!?]+[.!?]+/g) || [para];
+              let sentenceChunk = "";
+
+              for (const sentence of sentences) {
+                if (sentenceChunk.length + sentence.length > 700) {
+                  if (sentenceChunk.length > 0) {
+                    chunks.push(`${contextHeader}\n${sentenceChunk}`);
+                    sentenceChunk = "";
+                  }
+                  if (sentence.length > 800) chunks.push(`${contextHeader}\n${sentence}`);
+                  else sentenceChunk = sentence;
+                } else {
+                  sentenceChunk += sentence;
+                }
+              }
+              if (sentenceChunk.length > 0) chunks.push(`${contextHeader}\n${sentenceChunk}`);
+            } else {
+              chunks.push(`${contextHeader}\n${para}`);
+            }
+          } else {
+            currentChunk += (currentChunk ? "\n\n" : "") + para;
+          }
+        }
+
+        if (currentChunk.length > 0) {
+          chunks.push(`${contextHeader}\n${currentChunk}`);
+        }
+      }
       }
     }
   }
