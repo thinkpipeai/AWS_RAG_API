@@ -168,6 +168,35 @@ async function legalDocumentSplitting(text) {
         }
       }
       }
+      // 4. Post-processing: merge too-small chunks and make sure each has enough context
+  const finalChunks = [];
+  let currentMergedChunk = "";
+
+  for (const chunk of chunks) {
+    if (currentMergedChunk.length + chunk.length + 1 <= 900) {
+      // Can be merged
+      currentMergedChunk += (currentMergedChunk ? "\n\n" : "") + chunk;
+    } else {
+      // Can't merge, save the current block and start a new one.
+      if (currentMergedChunk.length > 0) {
+        finalChunks.push(currentMergedChunk);
+      }
+
+      if (chunk.length > 900) {
+        finalChunks.push(chunk);
+        currentMergedChunk = "";
+      } else {
+        currentMergedChunk = chunk;
+      }
+    }
+  }
+
+  // Add the last merge block
+  if (currentMergedChunk.length > 0) {
+    finalChunks.push(currentMergedChunk);
+  }
+
+  return finalChunks;
     }
   }
 
