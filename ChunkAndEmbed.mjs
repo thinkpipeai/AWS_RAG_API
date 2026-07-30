@@ -191,6 +191,29 @@ async function legalDocumentSplitting(text) {
     }
   }
 
+    cumentSplitting 函数保持不变...
+
+// Generate embedding vectors
+async function generateEmbedding(text) {
+  const response = await bedrock.send(
+    new InvokeModelCommand({
+      modelId: 'amazon.titan-embed-text-v2:0',
+      contentType: 'application/json',
+      accept: 'application/json',
+      body: JSON.stringify({ inputText: text })
+    })
+  );
+  const result = JSON.parse(Buffer.from(response.body).toString());
+  return result.embedding;
+}
+
+export const handler = async (event) => {
+  // 测试向量生成链路
+  const testEmbed = await generateEmbedding("This is a test legal context.");
+  console.log("Bedrock Embedding successfully generated, dimensions:", testEmbed.length);
+  // ...
+};
+
   // Add the last merge block
   if (currentMergedChunk.length > 0) {
     finalChunks.push(currentMergedChunk);
